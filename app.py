@@ -53,9 +53,16 @@ user_text = st.text_area(
     height=200
 )
 
-# [주의] 이 부분에 콜론(:)이 정확히 있어야 합니다!
+# 버튼 클릭 시 로직 (이 부분의 들여쓰기와 마침표를 주의하세요)
 if st.button("민원 초안 생성하기 ✨"):
     if user_text.strip():
         with st.spinner('AI가 분석 중입니다...'):
             result = generate_complaint(user_text)
-            st.
+            st.success("✅ 작성이 완료되었습니다!")
+            st.divider()
+            st.markdown(result)
+    else:
+        st.warning("내용을 입력해 주세요.")
+
+st.divider()
+st.caption("© 2026 민원 작성 도우미 | Powered by Google Gemini Pro")
