@@ -12,8 +12,9 @@ st.caption("🔒 개인정보 보호: 이름, 상세 주소 등은 제외하고 
 try:
     if "GOOGLE_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-        # 가장 안정적인 gemini-pro 모델 사용
-        model = genai.GenerativeModel('gemini-pro') 
+        
+        # [수정 포인트] 최신 표준 모델명인 gemini-1.5-pro를 사용합니다.
+        model = genai.GenerativeModel('gemini-1.5-pro') 
     else:
         st.error("⚠️ 설정 오류: Streamlit Secrets에 'GOOGLE_API_KEY'가 없습니다.")
         st.stop()
@@ -38,12 +39,21 @@ def generate_complaint(user_input):
     문체는 '바랍니다', '요청드립니다'와 같은 공손한 격식체를 사용하세요.
     """
     try:
+        # 모델 생성을 시도합니다.
         response = model.generate_content(prompt)
         if response and response.text:
             return response.text
         else:
             return "❌ AI가 답변을 생성하지 못했습니다. 내용을 더 자세히 적어주세요."
     except Exception as e:
+        # 만약 404 에러가 나면 다른 모델로 한 번 더 시도합니다.
+        if "404" in str(e):
+            try:
+                alt_model = genai.GenerativeModel('gemini-1.5-flash')
+                response = alt_model.generate_content(prompt)
+                return response.text
+            except:
+                return "❌ 현재 구글 API에서 사용할 수 있는 모델이 없습니다. API 키 설정을 확인해 주세요."
         return f"❌ 오류 발생: {str(e)}"
 
 # 4. 사용자 입력 및 결과 출력
@@ -53,7 +63,6 @@ user_text = st.text_area(
     height=200
 )
 
-# 버튼 클릭 시 로직 (이 부분의 들여쓰기와 마침표를 주의하세요)
 if st.button("민원 초안 생성하기 ✨"):
     if user_text.strip():
         with st.spinner('AI가 분석 중입니다...'):
@@ -65,4 +74,4 @@ if st.button("민원 초안 생성하기 ✨"):
         st.warning("내용을 입력해 주세요.")
 
 st.divider()
-st.caption("© 2026 민원 작성 도우미 | Powered by Google Gemini Pro")
+st.caption("© 2026 민원 작성 도우미 | Powered by Google Gemini")
