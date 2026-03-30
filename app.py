@@ -1,103 +1,104 @@
-import pygame
-import pymunk
-import random
+import streamlit as st
+import streamlit.components.v1 as components
 
-# 기본 설정
-WIDTH, HEIGHT = 500, 800
-FPS = 60
+st.set_page_config(page_title="핀볼 당첨자 뽑기", layout="centered")
 
-def create_ball(space, pos, color, number):
-    mass = 1
-    radius = 12
-    moment = pymunk.moment_for_circle(mass, 0, radius)
-    body = pymunk.Body(mass, moment)
-    body.position = pos
-    shape = pymunk.Circle(body, radius)
-    shape.elasticity = 0.6  # 탄성
-    shape.friction = 0.5
-    shape.color = color
-    shape.number = number
-    space.add(body, shape)
-    return shape
+st.title("🎡 핀볼 당첨자 뽑기")
+st.write("10명의 참가자 중 단 한 명의 주인공을 뽑습니다! '게임 시작'을 눌러주세요.")
 
-def setup_space():
-    space = pymunk.Space()
-    space.gravity = (0, 900)  # 아래로 떨어지는 중력
+# 사용자 이름 입력 (선택 사항)
+names = []
+cols = st.columns(5)
+for i in range(10):
+    name = cols[i % 5].text_input(f"{i+1}번 이름", f"참가자 {i+1}", key=f"name_{i}")
+    names.append(name)
 
-    # 장애물(핀) 생성
-    for y in range(200, 600, 70):
-        shift = 30 if (y // 70) % 2 == 0 else 0
-        for x in range(50, WIDTH, 60):
-            static_body = space.static_body
-            shape = pymunk.Circle(static_body, 5, offset=(x + shift, y))
-            shape.elasticity = 0.8
-            space.add(shape)
+# JavaScript 기반 물리 엔진 (Matter.js 사용)
+pinball_html = f"""
+<div id="container" style="text-align:center;">
+    <button id="start-btn" style="padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; margin-bottom: 10px;">🚀 게임 시작!</button>
+    <div id="canvas-container"></div>
+</div>
 
-    # 깔때기 라인 생성
-    left_funnel = pymunk.Segment(space.static_body, (0, 650), (220, 750), 5)
-    right_funnel = pymunk.Segment(space.static_body, (WIDTH, 650), (280, 750), 5)
-    bottom_gate = pymunk.Segment(space.static_body, (220, 780), (280, 780), 2) # 골인 지점 근처
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script>
+const names = {names};
+const colors = ['#FF5733', '#33FF57', '#3357FF', '#F333FF', '#F3FF33', '#33FFF3', '#FFA500', '#800080', '#008080', '#A52A2A'];
+
+const {{ Engine, Render, Runner, Bodies, Composite, Events }} = Matter;
+
+let engine, render, runner;
+let winnerDeclared = false;
+
+function initGame() {{
+    const container = document.getElementById('canvas-container');
+    container.innerHTML = ''; // 초기화
     
-    for line in [left_funnel, right_funnel, bottom_gate]:
-        line.elasticity = 0.5
-        space.add(line)
-        
-    return space
+    engine = Engine.create();
+    render = Render.create({{
+        element: container,
+        engine: engine,
+        options: {{ width: 400, height: 600, wireframes: false, background: '#f9f9f9' }}
+    }});
 
-def main():
-    pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    clock = pygame.time.Clock()
-    space = setup_space()
+    // 벽 및 깔때기 설계
+    const ground = Bodies.rectangle(200, 610, 410, 60, {{ isStatic: true }});
+    const leftWall = Bodies.rectangle(-10, 300, 20, 600, {{ isStatic: true }});
+    const rightWall = Bodies.rectangle(410, 300, 20, 600, {{ isStatic: true }});
     
-    balls = []
-    colors = [(255,0,0), (0,255,0), (0,0,255), (255,255,0), (255,0,255), 
-              (0,255,255), (255,165,0), (128,0,128), (0,128,128), (128,128,0)]
+    // 깔때기 (Funnel)
+    const leftFunnel = Bodies.rectangle(100, 550, 250, 10, {{ isStatic: true, angle: Math.PI / 6 }});
+    const rightFunnel = Bodies.rectangle(300, 550, 250, 10, {{ isStatic: true, angle: -Math.PI / 6 }});
     
-    running = True
-    started = False
-    winner = None
+    // 골인 지점 센서
+    const sensor = Bodies.rectangle(200, 590, 40, 20, {{ isStatic: true, isSensor: true, render: {{ fillStyle: 'transparent' }} }});
 
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                if not started:
-                    for i in range(10):
-                        # 시작 위치에 약간의 변칙을 주어 겹치지 않게 투하
-                        pos = (WIDTH//2 + random.uniform(-20, 20), 50 - (i * 30))
-                        balls.append(create_ball(space, pos, colors[i], i+1))
-                    started = True
+    // 장애물 (Pins)
+    const pins = [];
+    for (let i = 0; i < 7; i++) {{
+        for (let j = 0; j < (i % 2 === 0 ? 6 : 5); j++) {{
+            pins.push(Bodies.circle(60 + j * 60 + (i % 2 === 0 ? 0 : 30), 150 + i * 50, 5, {{ isStatic: true, render: {{ fillStyle: '#444' }} }}));
+        }}
+    }}
 
-        screen.fill((240, 240, 240))
-        
-        # 핀(장애물) 그리기
-        for shape in space.shapes:
-            if isinstance(shape, pymunk.Circle) and shape.body == space.static_body:
-                pygame.draw.circle(screen, (100, 100, 100), shape.offset, 5)
-            elif isinstance(shape, pymunk.Segment):
-                pygame.draw.line(screen, (50, 50, 50), shape.a, shape.b, 5)
+    Composite.add(engine.world, [ground, leftWall, rightWall, leftFunnel, rightFunnel, sensor, ...pins]);
 
-        # 공 그리기 및 승자 체크
-        for ball in balls:
-            pos = ball.body.position
-            pygame.draw.circle(screen, ball.color, (int(pos.x), int(pos.y)), 12)
-            
-            # 깔때기 끝 통과 여부 확인 (y축 기준 750 이상)
-            if winner is None and pos.y > 750:
-                winner = ball.number
+    // 공 생성
+    const balls = names.map((name, i) => {{
+        return Bodies.circle(200 + (Math.random() * 40 - 20), -i * 30, 12, {{
+            restitution: 0.5,
+            render: {{ fillStyle: colors[i] }},
+            label: name
+        }});
+    }});
 
-        if winner:
-            font = pygame.font.SysFont("malgungothic", 40)
-            txt = font.render(f"Winner: Player {winner}!", True, (0, 0, 0))
-            screen.blit(txt, (WIDTH//2 - 100, 100))
+    Composite.add(engine.world, balls);
+    
+    // 충돌 감지 (승자 확인)
+    Events.on(engine, 'collisionStart', (event) => {{
+        event.pairs.forEach((pair) => {{
+            if (!winnerDeclared && (pair.bodyA === sensor || pair.bodyB === sensor)) {{
+                const ball = pair.bodyA === sensor ? pair.bodyB : pair.bodyA;
+                if (ball.label && names.includes(ball.label)) {{
+                    winnerDeclared = true;
+                    alert("축하합니다! 당첨자는: " + ball.label);
+                }}
+            }}
+        }});
+    }});
 
-        space.step(1/FPS)
-        pygame.display.flip()
-        clock.tick(FPS)
+    Render.run(render);
+    runner = Runner.create();
+    Runner.run(runner, engine);
+}}
 
-    pygame.quit()
+document.getElementById('start-btn').addEventListener('click', () => {{
+    winnerDeclared = false;
+    initGame();
+}});
+</script>
+"""
 
-if __name__ == "__main__":
-    main()
+components.html(pinball_html, height=700)
+
+st.info("💡 각 공은 입력한 이름 순서대로 색상이 지정됩니다. 깔때기 맨 아래 구멍에 가장 먼저 도달하는 공이 승리합니다!")
