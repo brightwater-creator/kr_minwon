@@ -53,4 +53,10 @@ js_lines = [
     '  });',
     '  Render.run(render); Runner.run(Runner.create(), engine);',
     '}',
-    'document.getElementById
+    'document.getElementById("btn").onclick = start;',
+    '</script>'
+]
+
+# 리스트를 문자열로 합쳐서 출력
+final_html = "".join(js_lines)
+components.html(final_html, height=2300, scrolling=True)
