@@ -6,22 +6,18 @@ import google.generativeai as genai
 # ==============================
 st.set_page_config(page_title="민원 작성 도우미", page_icon="🏛️")
 
-# 상단 제목
 st.title("🏛️ 스마트 민원 작성 도우미")
 st.info("💡 본 서비스는 입력하신 내용을 바탕으로 공식 민원 초안을 만들어 드립니다.")
-
-# 개인정보 보호 안내 (사용자 안심용)
-st.caption("🔒 **개인정보 보호 안내**: 입력하신 내용은 AI 모델 처리를 위해 전송되지만, 별도로 저장되지 않습니다. 이름, 상세 주소, 연락처 등 민감한 개인정보는 제외하고 상황 위주로 입력해 주세요.")
+st.caption("🔒 **개인정보 보호 안내**: 입력하신 내용은 별도로 저장되지 않습니다. 이름, 상세 주소 등 민감한 개인정보는 제외하고 입력해 주세요.")
 
 # ==============================
-# 2. API 키 및 모델 설정
+# 2. API 키 및 모델 설정 (수정된 부분)
 # ==============================
 try:
-    # Streamlit Secrets에서 키 가져오기
     if "GOOGLE_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-        # 가장 범용적인 모델명 사용 (오류 방지를 위해 flash와 pro 혼용 설정)
-        model = genai.GenerativeModel('gemini-1.5-flash') 
+        # 'gemini-1.5-flash' 대신 가장 안정적인 'gemini-pro'를 사용합니다.
+        model = genai.GenerativeModel('gemini-pro') 
     else:
         st.error("⚠️ 설정 오류: Streamlit Secrets에 'GOOGLE_API_KEY'가 등록되지 않았습니다.")
         st.stop()
@@ -49,9 +45,17 @@ def generate_complaint(user_input):
     """
     
     try:
+        # 안전한 생성을 위한 설정 추가
         response = model.generate_content(prompt)
-        return response.text
+        
+        # 만약 결과가 비어있다면 오류 메시지 반환
+        if response and response.text:
+            return response.text
+        else:
+            return "❌ AI가 답변을 생성하지 못했습니다. 내용을 조금 더 자세히 적어주세요."
+            
     except Exception as e:
+        # 상세 오류 메시지 출력 (디버깅용)
         return f"❌ AI 생성 중 오류가 발생했습니다: {str(e)}"
 
 # ==============================
@@ -59,21 +63,8 @@ def generate_complaint(user_input):
 # ==============================
 user_text = st.text_area(
     "민원 내용을 자유롭게 적어주세요", 
-    placeholder="예: 우리 동네 놀이터 그네가 끊어져서 아이들이 다칠 것 같아요. 빨리 고쳐주세요!",
+    placeholder="예: 우리 동네 가로등이 꺼져서 밤길이 너무 어두워요. 조치 부탁드려요.",
     height=200
 )
 
-if st.button("민원 초안 생성하기 ✨"):
-    if user_text.strip():
-        with st.spinner('AI가 내용을 분석하여 초안을 작성 중입니다...'):
-            result = generate_complaint(user_text)
-            st.success("✅ 작성이 완료되었습니다!")
-            st.divider()
-            st.markdown(result)
-            st.button("다시 작성하기")
-    else:
-        st.warning("내용을 입력해 주세요.")
-
-# 하단 푸터
-st.divider()
-st.caption("© 2026 민원 작성 도우미 | Powered by Google Gemini")
+if st
