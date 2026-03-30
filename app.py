@@ -1,33 +1,27 @@
 import streamlit as st
 import google.generativeai as genai
 
-# ==============================
-# 1. 페이지 설정 및 보안 안내
-# ==============================
+# 1. 페이지 설정
 st.set_page_config(page_title="민원 작성 도우미", page_icon="🏛️")
 
 st.title("🏛️ 스마트 민원 작성 도우미")
-st.info("💡 본 서비스는 입력하신 내용을 바탕으로 공식 민원 초안을 만들어 드립니다.")
-st.caption("🔒 **개인정보 보호 안내**: 입력하신 내용은 별도로 저장되지 않습니다. 이름, 상세 주소 등 민감한 개인정보는 제외하고 입력해 주세요.")
+st.info("💡 입력하신 내용을 바탕으로 공식 민원 초안을 만들어 드립니다.")
+st.caption("🔒 개인정보 보호: 이름, 상세 주소 등은 제외하고 상황 위주로 입력해 주세요.")
 
-# ==============================
-# 2. API 키 및 모델 설정 (수정된 부분)
-# ==============================
+# 2. API 키 및 모델 설정
 try:
     if "GOOGLE_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-        # 'gemini-1.5-flash' 대신 가장 안정적인 'gemini-pro'를 사용합니다.
+        # 가장 안정적인 gemini-pro 모델 사용
         model = genai.GenerativeModel('gemini-pro') 
     else:
-        st.error("⚠️ 설정 오류: Streamlit Secrets에 'GOOGLE_API_KEY'가 등록되지 않았습니다.")
+        st.error("⚠️ 설정 오류: Streamlit Secrets에 'GOOGLE_API_KEY'가 없습니다.")
         st.stop()
 except Exception as e:
     st.error(f"⚠️ 연결 오류: {str(e)}")
     st.stop()
 
-# ==============================
 # 3. 민원 생성 함수
-# ==============================
 def generate_complaint(user_input):
     prompt = f"""
     당신은 대한민국 공공기관 민원 작성 전문가입니다. 
@@ -43,28 +37,25 @@ def generate_complaint(user_input):
     
     문체는 '바랍니다', '요청드립니다'와 같은 공손한 격식체를 사용하세요.
     """
-    
     try:
-        # 안전한 생성을 위한 설정 추가
         response = model.generate_content(prompt)
-        
-        # 만약 결과가 비어있다면 오류 메시지 반환
         if response and response.text:
             return response.text
         else:
-            return "❌ AI가 답변을 생성하지 못했습니다. 내용을 조금 더 자세히 적어주세요."
-            
+            return "❌ AI가 답변을 생성하지 못했습니다. 내용을 더 자세히 적어주세요."
     except Exception as e:
-        # 상세 오류 메시지 출력 (디버깅용)
-        return f"❌ AI 생성 중 오류가 발생했습니다: {str(e)}"
+        return f"❌ 오류 발생: {str(e)}"
 
-# ==============================
 # 4. 사용자 입력 및 결과 출력
-# ==============================
 user_text = st.text_area(
-    "민원 내용을 자유롭게 적어주세요", 
-    placeholder="예: 우리 동네 가로등이 꺼져서 밤길이 너무 어두워요. 조치 부탁드려요.",
+    "민원 내용을 적어주세요", 
+    placeholder="예: 우리 동네 놀이터 그네가 끊어져 있어요. 수리 부탁드려요.",
     height=200
 )
 
-if st
+# [주의] 이 부분에 콜론(:)이 정확히 있어야 합니다!
+if st.button("민원 초안 생성하기 ✨"):
+    if user_text.strip():
+        with st.spinner('AI가 분석 중입니다...'):
+            result = generate_complaint(user_text)
+            st.
